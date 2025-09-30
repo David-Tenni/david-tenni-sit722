@@ -54,6 +54,10 @@ jobs:
             --from-literal=AZURE_STORAGE_ACCOUNT_KEY='${{ secrets.AZURE_STORAGE_KEY }}' \
             -n ${{ env.STAGING_NAMESPACE }} \
             --dry-run=client -o yaml | kubectl apply -f -
+          
+          # Wait for resources to be ready
+          echo "Waiting for ConfigMap and Secrets to be available..."
+          sleep 5
 
       - name: Deploy Backend Infrastructure to Staging
         run: |
@@ -130,6 +134,8 @@ jobs:
       - name: Cleanup Staging Environment
         if: always()
         run: |
+          echo "Waiting 30 seconds before cleanup for debugging..."
+          sleep 30
           echo "Destroying staging namespace..."
           kubectl delete namespace ${{ env.STAGING_NAMESPACE }} --wait=false || true
           echo "Staging environment cleanup initiated"

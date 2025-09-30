@@ -56,6 +56,10 @@ jobs:
             --from-literal=AZURE_STORAGE_ACCOUNT_KEY='${{ secrets.AZURE_STORAGE_KEY }}' \
             -n production \
             --dry-run=client -o yaml | kubectl apply -f -
+          
+          # Wait for resources to be ready
+          echo "Waiting for ConfigMap and Secrets to be available..."
+          sleep 5
 
       - name: Deploy Backend Infrastructure to Production
         run: |
