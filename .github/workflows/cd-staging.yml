@@ -34,6 +34,27 @@ jobs:
           kubectl create namespace ${{ env.STAGING_NAMESPACE }} || true
           kubectl label namespace ${{ env.STAGING_NAMESPACE }} environment=staging
 
+      - name: Create ConfigMap and Secrets
+        run: |
+          # Create ConfigMap
+          kubectl create configmap ecomm-config-w08e1 \
+            --from-literal=PRODUCTS_DB_NAME=productsdb \
+            --from-literal=ORDERS_DB_NAME=ordersdb \
+            --from-literal=PRODUCT_SERVICE_URL=http://product-service-w08e1:8000 \
+            --from-literal=AZURE_STORAGE_CONTAINER_NAME=products \
+            --from-literal=AZURE_SAS_TOKEN_EXPIRY_HOURS=24 \
+            -n ${{ env.STAGING_NAMESPACE }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+          
+          # Create Secrets
+          kubectl create secret generic ecomm-secrets-w08e1 \
+            --from-literal=POSTGRES_USER=postgres \
+            --from-literal=POSTGRES_PASSWORD=postgres \
+            --from-literal=AZURE_STORAGE_ACCOUNT_NAME=stor224096074 \
+            --from-literal=AZURE_STORAGE_ACCOUNT_KEY='${{ secrets.AZURE_STORAGE_KEY }}' \
+            -n ${{ env.STAGING_NAMESPACE }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Deploy Backend Infrastructure to Staging
         run: |
           echo "Deploying databases to staging namespace..."
