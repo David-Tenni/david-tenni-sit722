@@ -58,6 +58,11 @@ jobs:
           # Wait for resources to be ready
           echo "Waiting for ConfigMap and Secrets to be available..."
           sleep 5
+          
+          # Verify they exist
+          echo "=== Verifying ConfigMap and Secrets ==="
+          kubectl get configmap ecomm-config-w08e1 -n ${{ env.STAGING_NAMESPACE }}
+          kubectl get secret ecomm-secrets-w08e1 -n ${{ env.STAGING_NAMESPACE }}
 
       - name: Deploy Backend Infrastructure to Staging
         run: |
@@ -70,6 +75,24 @@ jobs:
           sleep 30
           kubectl wait --for=condition=ready pod -l app=product-db -n ${{ env.STAGING_NAMESPACE }} --timeout=180s || true
           kubectl wait --for=condition=ready pod -l app=order-db -n ${{ env.STAGING_NAMESPACE }} --timeout=180s || true
+
+      - name: Debug Database Pods
+        if: always()
+        run: |
+          echo "=== All Pods Status ==="
+          kubectl get pods -n ${{ env.STAGING_NAMESPACE }}
+          
+          echo "=== Product DB Pod Details ==="
+          kubectl describe pod -l app=product-db -n ${{ env.STAGING_NAMESPACE }} || echo "No product-db pods found"
+          
+          echo "=== Order DB Pod Details ==="
+          kubectl describe pod -l app=order-db -n ${{ env.STAGING_NAMESPACE }} || echo "No order-db pods found"
+          
+          echo "=== Product DB Logs ==="
+          kubectl logs -l app=product-db -n ${{ env.STAGING_NAMESPACE }} --tail=100 || echo "No logs available"
+          
+          echo "=== Order DB Logs ==="
+          kubectl logs -l app=order-db -n ${{ env.STAGING_NAMESPACE }} --tail=100 || echo "No logs available"
 
       - name: Deploy Product Service to Staging
         run: |
@@ -125,20 +148,12 @@ jobs:
           echo "=== Acceptance tests completed ==="
 
       - name: Display Staging Environment Details
+        if: always()
         run: |
           echo "=== Staging Environment ==="
           echo "Namespace: ${{ env.STAGING_NAMESPACE }}"
           echo "Commit SHA: ${{ github.sha }}"
           kubectl get all -n ${{ env.STAGING_NAMESPACE }}
-
-      - name: Cleanup Staging Environment
-        if: always()
-        run: |
-          echo "Waiting 30 seconds before cleanup for debugging..."
-          sleep 30
-          echo "Destroying staging namespace..."
-          kubectl delete namespace ${{ env.STAGING_NAMESPACE }} --wait=false || true
-          echo "Staging environment cleanup initiated"
 
       - name: Logout from Azure
         run: az logout
