@@ -1,29 +1,23 @@
 name: CD - Deploy to Staging
 
 on:
-  workflow_run:
-    workflows: ["CI - Test, Build and Push Images to ACR"]
-    types:
-      - completed
+  push:
     branches:
       - testing
+    paths:
+      - 'backend/**'
+      - '.github/workflows/**'
 
 env:
-  STAGING_NAMESPACE: staging-${{ github.event.workflow_run.head_sha }}
+  STAGING_NAMESPACE: staging-${{ github.sha }}
 
 jobs:
   deploy_to_staging:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     
     steps:
       - name: Checkout testing branch
         uses: actions/checkout@v4
-        with:
-          ref: testing
-
-      - name: Pull latest testing branch
-        run: git pull origin testing
 
       - name: Log in to Azure
         uses: azure/login@v1
@@ -195,7 +189,7 @@ jobs:
         run: |
           echo "=== Staging Environment ==="
           echo "Namespace: ${{ env.STAGING_NAMESPACE }}"
-          echo "Testing Branch SHA: ${{ github.event.workflow_run.head_sha }}"
+          echo "Commit SHA: ${{ github.sha }}"
           kubectl get all -n ${{ env.STAGING_NAMESPACE }}
 
       - name: Logout from Azure
