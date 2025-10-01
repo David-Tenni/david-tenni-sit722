@@ -22,6 +22,9 @@ jobs:
         with:
           ref: testing
 
+      - name: Pull latest testing branch
+        run: git pull origin testing
+
       - name: Log in to Azure
         uses: azure/login@v1
         with:
