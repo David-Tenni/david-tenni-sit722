@@ -9,7 +9,7 @@ on:
       - testing
 
 env:
-  STAGING_NAMESPACE: staging-${{ github.sha }}
+  STAGING_NAMESPACE: staging-${{ github.event.workflow_run.head_sha }}
 
 jobs:
   deploy_to_staging:
@@ -17,8 +17,10 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     
     steps:
-      - name: Checkout repository
+      - name: Checkout testing branch
         uses: actions/checkout@v4
+        with:
+          ref: testing
 
       - name: Log in to Azure
         uses: azure/login@v1
@@ -97,20 +99,58 @@ jobs:
       - name: Deploy Product Service to Staging
         run: |
           cd k8s/
+          echo "=== Deploying Product Service with :latest tag ==="
+          echo "Image will be: ${{ secrets.ACR_LOGIN_SERVER }}/product_service:latest"
+          
           cat product-service.yaml | \
-            sed "s|image:.*product_service.*|image: ${{ secrets.ACR_LOGIN_SERVER }}/product_service:${{ github.sha }}|g" | \
+            sed "s|image:.*product_service.*|image: ${{ secrets.ACR_LOGIN_SERVER }}/product_service:latest|g" | \
             kubectl apply -f - -n ${{ env.STAGING_NAMESPACE }}
           
+          echo "=== Waiting for product-service deployment ==="
           kubectl wait --for=condition=available deployment -l app=product-service -n ${{ env.STAGING_NAMESPACE }} --timeout=300s
+
+      - name: Debug Product Service on Failure
+        if: failure()
+        run: |
+          echo "=== Product Service Pod Status ==="
+          kubectl get pods -l app=product-service -n ${{ env.STAGING_NAMESPACE }}
+          
+          echo "=== Product Service Pod Details ==="
+          kubectl describe pod -l app=product-service -n ${{ env.STAGING_NAMESPACE }}
+          
+          echo "=== Product Service Logs ==="
+          kubectl logs -l app=product-service -n ${{ env.STAGING_NAMESPACE }} --tail=100 || echo "No logs available"
+          
+          echo "=== Product Service Deployment Details ==="
+          kubectl describe deployment -l app=product-service -n ${{ env.STAGING_NAMESPACE }}
 
       - name: Deploy Order Service to Staging
         run: |
           cd k8s/
+          echo "=== Deploying Order Service with :latest tag ==="
+          echo "Image will be: ${{ secrets.ACR_LOGIN_SERVER }}/order_service:latest"
+          
           cat order-service.yaml | \
-            sed "s|image:.*order_service.*|image: ${{ secrets.ACR_LOGIN_SERVER }}/order_service:${{ github.sha }}|g" | \
+            sed "s|image:.*order_service.*|image: ${{ secrets.ACR_LOGIN_SERVER }}/order_service:latest|g" | \
             kubectl apply -f - -n ${{ env.STAGING_NAMESPACE }}
           
+          echo "=== Waiting for order-service deployment ==="
           kubectl wait --for=condition=available deployment -l app=order-service -n ${{ env.STAGING_NAMESPACE }} --timeout=300s
+
+      - name: Debug Order Service on Failure
+        if: failure()
+        run: |
+          echo "=== Order Service Pod Status ==="
+          kubectl get pods -l app=order-service -n ${{ env.STAGING_NAMESPACE }}
+          
+          echo "=== Order Service Pod Details ==="
+          kubectl describe pod -l app=order-service -n ${{ env.STAGING_NAMESPACE }}
+          
+          echo "=== Order Service Logs ==="
+          kubectl logs -l app=order-service -n ${{ env.STAGING_NAMESPACE }} --tail=100 || echo "No logs available"
+          
+          echo "=== Order Service Deployment Details ==="
+          kubectl describe deployment -l app=order-service -n ${{ env.STAGING_NAMESPACE }}
 
       - name: Run Acceptance Tests
         run: |
@@ -152,7 +192,7 @@ jobs:
         run: |
           echo "=== Staging Environment ==="
           echo "Namespace: ${{ env.STAGING_NAMESPACE }}"
-          echo "Commit SHA: ${{ github.sha }}"
+          echo "Testing Branch SHA: ${{ github.event.workflow_run.head_sha }}"
           kubectl get all -n ${{ env.STAGING_NAMESPACE }}
 
       - name: Logout from Azure
