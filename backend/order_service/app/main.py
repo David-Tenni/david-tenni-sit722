@@ -17,7 +17,7 @@ from .db import Base, engine, get_db
 from .models import Order, OrderItem
 from .schemas import OrderCreate, OrderItemResponse, OrderResponse, OrderUpdate
 
-# test2222222fuck23asd
+# test2222222fuck23asds
 # --- Standard Logging Configuration ---
 logging.basicConfig(
     level=logging.INFO,
